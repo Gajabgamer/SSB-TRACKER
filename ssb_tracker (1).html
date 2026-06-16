@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SSB Mission Tracker — Saurabh Mishra</title>
+<meta name="theme-color" content="#080808"/>
+<link rel="manifest" href="data:application/json,{}"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:#080808;color:#e0e0e0;font-family:Georgia,serif;min-height:100vh;padding-bottom:72px;}
+button{font-family:Georgia,serif;cursor:pointer;border:none;background:none;}
+textarea{font-family:Georgia,serif;}
+input{font-family:Georgia,serif;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:#111;}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:#060606;border-top:1px solid #111;display:flex;}
+.nav-btn{flex:1;background:none;border:none;padding:10px 4px 7px;cursor:pointer;font-family:Georgia,serif;font-size:9px;letter-spacing:.5px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .15s;border-top:2px solid transparent;}
+.nav-icon{font-size:16px;}
+.toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:#f7a030;color:#000;padding:10px 20px;border-radius:6px;font-weight:700;font-size:13px;z-index:9999;letter-spacing:.5px;box-shadow:0 4px 20px rgba(247,160,48,.5);white-space:nowrap;pointer-events:none;transition:opacity .3s;}
+.star{font-size:22px;cursor:pointer;transition:color .1s;}
+.task-card{background:#0e0e0e;border:1px solid #141414;border-radius:7px;margin-bottom:6px;overflow:hidden;transition:all .2s;}
+.task-card.done{background:#091209;border-color:#143014;}
+.task-card.ngo-pending{opacity:.55;}
+.check{width:21px;height:21px;border-radius:50%;flex-shrink:0;margin-top:1px;border:2px solid #222;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#000;font-size:12px;font-weight:900;transition:all .15s;}
+.check.checked{background:var(--accent);border-color:var(--accent);}
+.tag-badge{border-radius:3px;padding:2px 6px;font-size:9px;letter-spacing:.3px;}
+.progress-bar{background:#141414;border-radius:3px;height:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width .3s;}
+.day-btn{background:#0e0e0e;border:1px solid #141414;border-radius:5px;padding:6px 3px;cursor:pointer;font-family:Georgia,serif;text-align:center;}
+.section-label{font-size:9px;letter-spacing:3px;color:#333;text-transform:uppercase;margin-bottom:12px;}
+.card{background:#0e0e0e;border:1px solid #141414;border-radius:8px;padding:14px;margin-bottom:10px;}
+.notif-banner{background:#120f00;border:1px solid #3a2e00;border-radius:4px;padding:8px 12px;cursor:pointer;color:#f7c07e;font-size:11px;width:100%;margin-top:8px;text-align:center;}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="toast" class="toast" style="display:none;opacity:0;"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const START_DATE = new Date("2026-06-16T00:00:00");
+
+const PHASE_META = {
+  1:{label:"Self Prep",   subtitle:"Jun 16–30 · Home Grind",         accent:"#f7a030",dim:"#5a3a10"},
+  2:{label:"Camp Mode",   subtitle:"Jul 1–15 · SSB Coaching Camp",   accent:"#30d4f7",dim:"#106070"},
+  3:{label:"Final Push",  subtitle:"Jul 16–21 · Taper & Arrive Sharp",accent:"#f73060",dim:"#6a1030"},
+};
+
+const QUOTES=[
+  {t:"The Indian Army doesn't make soldiers. It reveals them.",a:"SSB Wisdom"},
+  {t:"Officers are not born. They are forged — one hard day at a time.",a:"Military Doctrine"},
+  {t:"Confidence is not 'I will succeed.' It is 'I will handle whatever comes.'",a:"IO Board Lesson"},
+  {t:"A leader who waits to be called is not a leader. Step forward.",a:"GTO Principle"},
+  {t:"Borders of Iran you knew. But did they see the fire in your eyes?",a:"Your SSB, Jan 2026"},
+  {t:"The conference room is not where you are judged. Every moment before it is.",a:"SSB Reality"},
+  {t:"Move people. Not just talk to them.",a:"Your Personal Lesson"},
+  {t:"Persistence and diligence are the keys to success.",a:"IO Report, Orange-42"},
+  {t:"A fractured toe does not fracture a will. Remember that.",a:"Your Story"},
+  {t:"Read the newspaper. Form an opinion. Own it.",a:"36-Day Mission"},
+  {t:"The officer is not the loudest in the room. He is the one the room listens to.",a:"Army Ethos"},
+  {t:"Borderline today. Recommended in July.",a:"The Mission"},
+  {t:"Do not say 'nothing sir' again. Ever.",a:"Conference Lesson"},
+  {t:"Every GD, every mock, every run — it compounds.",a:"36-Day Truth"},
+  {t:"Physical fitness is not a score. It is a statement of intent.",a:"Army Selection"},
+  {t:"You were not rejected. You were shown exactly where to return stronger.",a:"SSB Philosophy"},
+  {t:"The officer who moves his group forward in chaos is the one they remember.",a:"GTO Insight"},
+  {t:"Your why must be so strong it overrides your fear.",a:"Interview Prep"},
+  {t:"Warriors are not anxious. They are prepared.",a:"Mental Conditioning"},
+  {t:"July 21. Circle it. Work backward from it. Every. Single. Day.",a:"The Countdown"},
+  {t:"At camp, every peer is a mirror. Watch the best ones. Absorb it.",a:"Camp Wisdom"},
+  {t:"The camp is not preparation. The camp IS the SSB. Treat it that way.",a:"Coaching Reality"},
+  {t:"In 6 days, the real thing begins. You've done the work. Now trust it.",a:"Final Week"},
+  {t:"Sleep well. Eat well. Arrive sharp. The grind is done.",a:"Taper Phase"},
+];
+
+const TAG_COLORS={
+  physical:  {bg:"#0d1a28",border:"#1a4a6a",text:"#7eb8f7", label:"Physical"},
+  knowledge: {bg:"#1a0d28",border:"#4a1a6a",text:"#c07ef7", label:"Knowledge"},
+  psychology:{bg:"#0d1a0d",border:"#1a5a1a",text:"#7ef7a0", label:"Psychology"},
+  gto:       {bg:"#281a0d",border:"#6a4010",text:"#f7b87e", label:"GTO"},
+  interview: {bg:"#28100d",border:"#6a1a1a",text:"#f77e7e", label:"Interview"},
+  ngo_office:{bg:"#0d1e1a",border:"#106a50",text:"#50f7c0", label:"NGO Office"},
+  ngo_remote:{bg:"#141414",border:"#3a3a3a",text:"#888",    label:"NGO Remote"},
+  mindset:   {bg:"#1a1a0d",border:"#5a5a10",text:"#f7f07e", label:"Mindset"},
+  camp:      {bg:"#0d1e28",border:"#10607a",text:"#30d4f7", label:"Camp"},
+  rest:      {bg:"#111",   border:"#2a2a2a",text:"#555",    label:"Rest"},
+  __NGO__:   {bg:"#1a1200",border:"#3a2a00",text:"#7a5a20", label:"NGO"},
+};
+
+const NGO_OFFICE=[
+  "NGO centre visit — discuss assignment progress. Lead the conversation, not just report.",
+  "NGO office — take initiative in one meeting. Speak first on at least one agenda point.",
+  "NGO field interaction — observe how the team solves problems. Note one thing you'd do differently.",
+  "NGO office — volunteer to organize something today. Leadership is action, not intent.",
+  "NGO centre — present your update clearly and confidently. No hedging.",
+  "NGO office — engage with someone senior. Ask one sharp, informed question.",
+  "NGO fieldwork — be the organizer. Speak first. Move people deliberately.",
+  "NGO office — take ownership of one task entirely, start to finish.",
+  "NGO centre — build one genuine connection. Officers are trusted, not just respected.",
+  "NGO office — notice a problem and propose a solution. Do not wait to be asked.",
+  "NGO fieldwork — use as live GD practice. Influence the direction of a team discussion.",
+  "NGO office — coordinate across two people today. Be the connecting link.",
+  "NGO centre — wrap up a task cleanly. Officers complete what they start.",
+  "NGO office — final visit before camp. Leave a strong impression.",
+  "NGO handover — assignment clean and handed over. Responsibility = completion.",
+];
+const NGO_REMOTE=[
+  "NGO assignment — remote. Set a 90-min focused block. No distractions.",
+  "NGO assignment — remote. Finish one complete deliverable today.",
+  "NGO remote — clear goal, time limit, done. Mission briefing style.",
+  "NGO assignment — remote. Push one step ahead of what's expected.",
+  "NGO remote — review your own work critically before submitting. Officer standard.",
+  "NGO assignment — remote. Deep work block, 2 hours uninterrupted.",
+  "NGO remote — complete and document progress clearly.",
+  "NGO assignment — remote. Quality over speed today.",
+  "NGO remote — what did your NGO work teach you about leadership this week?",
+  "NGO assignment — remote. Finish strong.",
+  "NGO remote — no one is watching, but your standard must not drop.",
+  "NGO assignment — remote. One clear deliverable, completed.",
+  "NGO remote — final prep. Assignment clean for handover.",
+  "NGO remote — tie loose ends. Officers leave things better than they found them.",
+  "NGO remote wrap-up — final handover document ready before camp.",
+];
+
+// ALL 36 DAYS NOTIFICATION SCHEDULE
+// Format: [hour, minute, title, body]
+const NOTIF_SCHEDULE = {
+  // Phase 1 days (1-15) — 26 reminders/day: wake, pre-task warnings, task starts, hydration, posture, sleep
+  phase1:[
+    [5,50,"🌅 Wake Up — 10 Min Warning","Saurabh, run starts in 10. No snooze. Officers don't negotiate with alarm clocks."],
+    [6,0,"🏃 Morning Run","Track your distance. Push 5% further than yesterday. Stamina is built today."],
+    [6,55,"💧 Hydrate","Drink water. Cool down properly before you sit for newspaper."],
+    [7,25,"📰 Newspaper Time","The Hindu — Defence, International, Economy. Write 3 headlines in YOUR words."],
+    [8,15,"✍️ Form Your Opinion","Don't just read — write what YOU think about one issue. That's what's tested."],
+    [8,55,"🏢 NGO Block — 5 Min Warning","Office or remote, get ready. Treat it like a mission, not a chore."],
+    [9,0,"🏢 NGO Block Starts","Lead something today. Speak first in one interaction."],
+    [10,30,"⏰ Halfway Check","Are you actually leading, or just present? Adjust now if needed."],
+    [11,25,"⚔️ Knowledge Block — 5 Min Warning","Army knowledge next. Ranks, regiments, war history."],
+    [11,30,"⚔️ Army Knowledge","Know the institution you're joining. This is non-negotiable depth."],
+    [12,45,"💧 Hydrate + Stretch","Quick break. Stand up, stretch, drink water."],
+    [13,0,"🍽️ Lunch Break","Eat well. Hydrate. 45 minutes only — don't let it stretch."],
+    [13,55,"📚 Study Block — 5 Min Warning","Deep work starts in 5. Phone away."],
+    [14,0,"📚 Study Block","No phone. No distractions. 2 hours of pure focus."],
+    [15,30,"🔍 Focus Check","Drifting? Refocus. This block compounds more than you realize."],
+    [16,25,"🧠 Psychology — 5 Min Warning","WAT/SRT next. Get your stopwatch ready."],
+    [16,30,"🧠 Psychology Practice","WAT + SRT timed. Consistency separates coached from recommended."],
+    [18,25,"🎤 Lecturette — 5 Min Warning","Pick your topic now. No notes once you start."],
+    [18,30,"🎤 Lecturette Practice","Record yourself. Watch it back. Fix one thing every day."],
+    [19,45,"⚠️ Evening Exercise — 15 Min Warning","Get your kit ready. Exercise is non-negotiable."],
+    [20,0,"💪 Evening Exercise","Gym / bodyweight. The fractured toe stopped you last time. Not this time."],
+    [21,30,"📖 Current Affairs Revision — 15 Min Warning","Summary time soon. Pull together today's notes."],
+    [21,45,"📖 Current Affairs Revision","1-page summary of today's reading. Make 5 flashcards."],
+    [22,25,"✍️ Journal — 5 Min Warning","Reflection time approaching. Think back on today."],
+    [22,30,"✍️ Journal Entry","Where did I lead today? Where did I hold back? Be honest."],
+    [23,0,"😴 Sleep NOW","Officers sleep on time. Recovery is part of the mission."],
+  ],
+  // Phase 2 camp days (16-30) — 26 reminders/day: pre-session warnings + live in-session nudges
+  phase2:[
+    [5,40,"🔥 Camp Day — 20 Min Warning","Rise now. Be ready before everyone else is."],
+    [5,55,"⚡ Pre-PT Mindset","Today's focus locked in. Execute it from minute one."],
+    [6,0,"🏃 Camp Morning PT","Give 100%. Physical energy sets your day's tone. Go."],
+    [7,0,"💧 Post-PT Hydration","Drink water. Recover fast — GD is next."],
+    [8,40,"🎯 Pre-GD — 20 Min Warning","Mentally rehearse: speak in the first 30 seconds. No exceptions."],
+    [8,55,"🎯 Pre-GD — 5 Min Warning","You're about to enter. Posture, eye contact, ready."],
+    [9,0,"💬 GD Session","Lead. Structure. Move. The recommended candidate leads, doesn't just participate."],
+    [10,45,"🔁 Mid-Session Check","Are you speaking enough? If not, the next chance is now."],
+    [11,0,"📋 Lecturette / GPE","Structure your thoughts before you speak. Lead the solution."],
+    [12,30,"💧 Hydrate","Quick water break before lunch."],
+    [13,0,"🍽️ Lunch — Observe","Eat. Hydrate. Watch the top performers — what are they doing differently?"],
+    [13,50,"🏗️ Outdoor Tasks — 10 Min Warning","PGT/HGT coming up. Decide now: you call the approach first."],
+    [14,0,"🏗️ Outdoor Tasks","Be FIRST to call the approach. Assign roles. Drive the solution."],
+    [15,45,"🔁 Outdoor Check","Did you lead or did you follow? There's still time to lead."],
+    [15,55,"🎙️ Interview Prep — 5 Min Warning","Mock interview next. Recall: emotion + action + lesson."],
+    [16,0,"🎙️ Mock Interview","Emotion + action taken + lesson. Never 'nothing sir' again."],
+    [17,30,"💧 Evening Hydration","Drink water. Long day — don't let fatigue show in the evening session."],
+    [17,55,"📰 Knowledge — 5 Min Warning","Current affairs block coming. Flashcards ready."],
+    [18,0,"📰 Evening Current Affairs","20 mins only. Flashcards. Knowledge must stay sharp."],
+    [18,55,"🧠 Psychology — 5 Min Warning","WAT/SRT quick round next."],
+    [19,0,"🧠 WAT + SRT Quick Round","15 words + 10 situations. Maintain psychology rhythm."],
+    [20,30,"🍽️ Dinner — Stay Social","Eat with the group. Officers connect, they don't isolate."],
+    [20,55,"📓 Journal — 5 Min Warning","Reflection time soon. Think honestly about today."],
+    [21,0,"📓 Camp Journal","Ruthlessly honest: where did I lead today? Where did I wait?"],
+    [22,0,"🔋 Sleep Early","Recovery = performance. Another full day tomorrow."],
+    [22,15,"💤 Lights Out","Saurabh, phone down. The work is done. Rest now."],
+  ],
+  // Phase 3 taper (31-36) — lighter, 14-16 reminders/day, calm and deliberate
+  phase3:[
+    [5,50,"🌅 Wake — 10 Min Warning","Light physical session coming up. No intensity today, just movement."],
+    [6,0,"🌅 Taper Day — Light Physical","Walk, stretch. Body ready — not exhausted. SSB needs you fresh."],
+    [7,0,"💧 Hydrate","Morning water. Keep it light and consistent today."],
+    [7,25,"📋 Flashcard Revision — 5 Min Warning","Final revision coming. No new topics today."],
+    [7,30,"📋 Flashcard Revision","30 mins only. Consolidate what you already know."],
+    [9,25,"🎙️ PIQ Read — 5 Min Warning","Read your PIQ next. Make it sound like you, not notes."],
+    [9,30,"🎙️ PIQ Read-Aloud","Every answer must sound natural, not rehearsed."],
+    [11,0,"🍽️ Light Lunch","Eat well. Don't overload — body needs to feel light and ready."],
+    [13,55,"💬 Interview — 5 Min Warning","Light mock interview next. Conversational, not pressure."],
+    [14,0,"💬 Light Mock Interview","Conversational mode. Build confidence, not pressure."],
+    [16,0,"💧 Hydrate + Breathe","Quick water break. Take a breath. You're almost there."],
+    [16,30,"🚶 Relax Walk","No study. Let the mind settle. You've earned this."],
+    [19,55,"📓 Journal — 5 Min Warning","Final reflections coming. Think about the 36 days."],
+    [20,0,"📓 Final Journal","What have you built in these days? Write it."],
+    [21,30,"📦 Pack Check","Documents, ID, clothes, PIQ copies. Check twice."],
+    [22,0,"😴 Sleep — You're Ready","The work is done. Trust it. July 21 is here."],
+  ],
+};
+
+function buildPlan(){
+  const days=[];
+  const p1Base={
+    1:{week:"Days 1–5 · Foundation",tasks:[
+      {time:"6:00–7:00 AM",task:"Morning run / physical training. Track distance.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"The Hindu / Indian Express — Defence, International, Economy. Write 3 headlines in YOUR own words.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"__NGO__",tag:"__NGO__"},
+      {time:"11:30 AM–1:00 PM",task:"Indian Army — ranks, regiments, operations, war history (1947, 1962, 1965, 1971, Kargil)",tag:"knowledge"},
+      {time:"2:00–4:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"4:30–6:00 PM",task:"WAT — 20 words, 15 sec each. Observational sentences only.",tag:"psychology"},
+      {time:"6:30–7:30 PM",task:"Lecturette — 1 topic, 3 mins alone, recorded. Review for filler words.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise — gym / bodyweight.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Current affairs revision — 1-page summary of morning reading.",tag:"knowledge"},
+    ]},
+    2:{week:"Days 1–5 · Foundation",tasks:[
+      {time:"6:00–7:00 AM",task:"Morning run — push 5% further than Day 1.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper — 3 headlines + form YOUR opinion on each. Write it down.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"__NGO__",tag:"__NGO__"},
+      {time:"11:30 AM–1:00 PM",task:"Army structure — officer ranks, command chain, major regiments and their history.",tag:"knowledge"},
+      {time:"2:00–4:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"4:30–6:00 PM",task:"SRT — 10 situations, response within 30 seconds each.",tag:"psychology"},
+      {time:"6:30–7:30 PM",task:"Lecturette — 2 topics, no notes, recorded.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Reflection journal — where did I lead today? Where did I hold back?",tag:"mindset"},
+    ]},
+    3:{week:"Days 1–5 · Foundation",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — obstacle movements: crawling, jumping, lateral hops.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + write one paragraph editorial — YOUR view on one current issue.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"__NGO__",tag:"__NGO__"},
+      {time:"11:30 AM–1:00 PM",task:"War history deep dive — 1971 war and Kargil. Key commanders, turning points.",tag:"knowledge"},
+      {time:"2:00–4:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"4:30–6:00 PM",task:"Full WAT mock — 30 words timed. Speed + quality.",tag:"psychology"},
+      {time:"6:30–7:30 PM",task:"GD solo — argue both sides of one topic for 5 mins each.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Make 5 current affairs flashcards from this week's reading.",tag:"knowledge"},
+    ]},
+    4:{week:"Days 4–8 · Interview Mindset",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical training.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + 3 opinions written. Make them specific, not vague.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"PIQ deep work — childhood, turning points, why Army, biggest failure, hobbies.",tag:"interview"},
+      {time:"11:30 AM–1:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:00–3:30 PM",task:"Stress question prep — 10 uncomfortable questions + honest answers. No 'nothing sir'.",tag:"interview"},
+      {time:"4:00–5:30 PM",task:"SRT + WAT timed combo.",tag:"psychology"},
+      {time:"6:00–7:00 PM",task:"Lecturette — 2 topics, recorded.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"TAT — 5 pictures, 4 min each. Hero faces a challenge and ACTS.",tag:"psychology"},
+    ]},
+    5:{week:"Days 4–8 · Interview Mindset",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical training.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + 5 current affairs flashcards.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"Write 500 words: WHY ARMY. Visceral, honest, personal.",tag:"interview"},
+      {time:"11:30 AM–1:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:00–3:30 PM",task:"Conference pressure drill — 'How did waiting feel?' Answer: emotion + action + lesson.",tag:"interview"},
+      {time:"4:00–5:30 PM",task:"SRT full mock — 60 situations, 30 minutes strictly.",tag:"psychology"},
+      {time:"6:00–7:00 PM",task:"GD practice — controversial topic, hold your ground respectfully.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"TAT — 5 more pictures. Check consistency of themes.",tag:"psychology"},
+    ]},
+    6:{week:"Days 4–8 · Interview Mindset",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — push hard today.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Deep current affairs — South China Sea, India-China border, defence acquisitions.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"Mock interview — 20 mins, recorded.",tag:"interview"},
+      {time:"11:30 AM–1:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:00–3:30 PM",task:"Review mock interview recording — mark filler words, weak answers.",tag:"interview"},
+      {time:"4:00–5:30 PM",task:"WAT + SRT combined timed mock.",tag:"psychology"},
+      {time:"6:00–7:00 PM",task:"SD writing — how parents / teacher / friend / you see yourself. Be specific.",tag:"psychology"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Review week — top 3 things still weak? Write them. Attack tomorrow.",tag:"mindset"},
+    ]},
+    7:{week:"Days 4–8 · Interview Mindset",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — obstacle movements.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + form opinion on one defence/security topic.",tag:"knowledge"},
+      {time:"9:00–11:30 AM",task:"__NGO__",tag:"__NGO__"},
+      {time:"12:00–1:30 PM",task:"GPE practice — take a scenario, build a full plan: roles, timings, resources. Present aloud in 3 mins.",tag:"gto"},
+      {time:"2:30–4:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"4:30–6:00 PM",task:"GD with friends — move the group, not just talk in it.",tag:"gto"},
+      {time:"6:30–7:30 PM",task:"Lecturette — 3 topics, no notes, recorded.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Mindset journal — WHY ARMY. Write it again. Make it stronger.",tag:"mindset"},
+    ]},
+    8:{week:"Days 4–8 · Interview Mindset",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — timed run, track progress.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Army current affairs — recent exercises (Yudh Abhyas, Shakti), acquisitions, border news.",tag:"knowledge"},
+      {time:"9:00–11:00 AM",task:"PIQ refinement — remove all vague words. Every sentence earns its place.",tag:"interview"},
+      {time:"11:30 AM–1:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:00–3:30 PM",task:"Full TAT mock — 10 pictures, time-bound. Consistent hero throughout.",tag:"psychology"},
+      {time:"4:00–5:30 PM",task:"GPE scenario — present plan in under 3 minutes, crisp and confident.",tag:"gto"},
+      {time:"6:00–7:00 PM",task:"Lecturette review — watch recordings, identify one thing to fix.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Current affairs flashcard revision — all cards so far.",tag:"knowledge"},
+    ]},
+    9:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — push your absolute limit today.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + self-test: 10 current affairs questions. No notes.",tag:"knowledge"},
+      {time:"9:30–11:30 AM",task:"Full mock interview — 30 mins, pressure mode, recorded.",tag:"interview"},
+      {time:"12:00–1:30 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:30–5:00 PM",task:"Full psychology session — TAT(10)+WAT(60)+SRT(60)+SD back-to-back, strict time.",tag:"psychology"},
+      {time:"5:30–6:30 PM",task:"GD + GPE combined practice.",tag:"gto"},
+      {time:"7:00–7:30 PM",task:"Phase review — top 3 things still weak? Write them.",tag:"mindset"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:00 PM",task:"Sleep early. Intensity rises tomorrow.",tag:"rest"},
+    ]},
+    10:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — increase intensity week on week.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + 5 flashcards.",tag:"knowledge"},
+      {time:"9:30–11:30 AM",task:"Mock GD — speak within first 30 seconds. Move the group.",tag:"gto"},
+      {time:"12:00–1:30 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:30–4:00 PM",task:"PGT/HGT mental simulation — crisp instructions, assign roles, call ideas fast.",tag:"gto"},
+      {time:"4:30–6:00 PM",task:"WAT + SRT full timed mock (60 WAT / 60 SRT).",tag:"psychology"},
+      {time:"6:30–7:30 PM",task:"Lecturette — 3 topics, no notes, recorded.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"TAT — 10 pictures. Hero resolves challenge through decisive action.",tag:"psychology"},
+    ]},
+    11:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical training.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Deep current affairs — one big issue fully understood: pros, cons, India's position.",tag:"knowledge"},
+      {time:"9:30–11:30 AM",task:"Full mock interview — pressure mode, every answer challenged.",tag:"interview"},
+      {time:"12:00–1:30 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:30–4:30 PM",task:"Leadership study — one Army officer or leader. Extract ONE lesson. Apply today.",tag:"mindset"},
+      {time:"5:00–6:30 PM",task:"GPE full mock — complete plan, present in under 3 minutes.",tag:"gto"},
+      {time:"7:00–7:30 PM",task:"GD practice — hold position under challenge.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Journal — where did I genuinely lead someone today?",tag:"mindset"},
+    ]},
+    12:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — endurance run + strength combo.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Rapid current affairs — self-test without notes. 15 questions.",tag:"knowledge"},
+      {time:"9:30–12:30 PM",task:"Full SSB simulation — GD + GPE + Lecturette + pressure interview back to back.",tag:"gto"},
+      {time:"1:00–2:30 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"3:00–5:00 PM",task:"Full psychology mock — TAT+WAT+SRT+SD strict time.",tag:"psychology"},
+      {time:"5:30–6:30 PM",task:"Review — what broke down in the simulation? Fix it now.",tag:"mindset"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:00 PM",task:"Journal — honest self-assessment. Ready for camp?",tag:"mindset"},
+    ]},
+    13:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — obstacle movements, agility, endurance.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Newspaper + current affairs final additions to flashcards.",tag:"knowledge"},
+      {time:"9:30–11:30 AM",task:"Mock GD + Lecturette back to back — simulate camp environment.",tag:"gto"},
+      {time:"12:00–1:30 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:30–4:30 PM",task:"Full psychology mock.",tag:"psychology"},
+      {time:"5:00–6:30 PM",task:"GPE — two different scenarios.",tag:"gto"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Army knowledge final revision — ranks, ops, history, current affairs compiled.",tag:"knowledge"},
+    ]},
+    14:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Physical — build camp-level stamina.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"PIQ final polish — read all answers aloud. Remove anything rehearsed.",tag:"interview"},
+      {time:"9:30–11:30 AM",task:"Final full mock interview — confident, natural, no crutches.",tag:"interview"},
+      {time:"12:00–1:30 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:30–4:30 PM",task:"Full GTO simulation — GD + GPE + Lecturette. Record everything.",tag:"gto"},
+      {time:"5:00–6:00 PM",task:"Review all Phase 1 recordings. Note biggest improvement and remaining gap.",tag:"mindset"},
+      {time:"8:00–9:30 PM",task:"Evening exercise.",tag:"physical"},
+      {time:"10:00–11:30 PM",task:"Journal — I am going to camp ready because... (finish honestly).",tag:"mindset"},
+    ]},
+    15:{week:"Days 9–15 · Peak Home Prep",tasks:[
+      {time:"6:00–7:00 AM",task:"Light physical — stretch, walk, stay loose.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Current affairs quick revision — flashcards only, 30 mins.",tag:"knowledge"},
+      {time:"9:30–11:00 AM",task:"Pack for camp — documents, clothes, PIQ copy, flashcard notes.",tag:"rest"},
+      {time:"11:30 AM–1:00 PM",task:"__NGO__",tag:"__NGO__"},
+      {time:"2:00–4:00 PM",task:"Quiet time — no heavy study. Read something motivating.",tag:"mindset"},
+      {time:"5:00–6:00 PM",task:"Light walk. Visualize camp Day 1. You're going to PERFORM, not learn.",tag:"mindset"},
+      {time:"8:00–9:00 PM",task:"Light exercise only.",tag:"physical"},
+      {time:"10:00 PM",task:"Sleep early. Camp starts tomorrow. Arrive sharp.",tag:"rest"},
+    ]},
+  };
+  for(let d=1;d<=15;d++){
+    const s=p1Base[d];
+    days.push({day:d,phase:1,weekLabel:s.week,
+      tasks:s.tasks.map((t,i)=>({...t,id:`d${d}t${i+1}`}))});
+  }
+  const campTips=["Speak within 30 seconds in every GD. Every single one.","Watch top performers. What do they do that you don't?","Lecturette — no filler words. Every sentence earns its place.","GPE — be the one who structures chaos. Give the plan.","Week 1 done. Where did you lead? Where did you wait?","GD Week 2 — speak first AND bring others in.","Outdoor tasks — first to suggest the approach. Don't wait.","Interview — emotion + action + lesson. Never 'nothing sir'.","Psychology — WAT and SRT must feel like one coherent person.","Week 2 — am I being remembered as leader or participant?","Final GDs — you know the group now. Move familiar faces.","Lecturette — pick harder topics. Show depth, not fluency.","Interview — pressure mode, no safety net. Own every answer.","Outdoor tasks — lead completely. No half-measures.","Last camp day. What one thing do you carry into real SSB?"];
+  for(let d=16;d<=30;d++){
+    const idx=d-16;
+    const wk=d<=20?"Days 16–20 · Camp Wk 1":d<=25?"Days 21–25 · Camp Wk 2":"Days 26–30 · Camp Wk 3";
+    days.push({day:d,phase:2,weekLabel:wk,tasks:[
+      {id:`d${d}t1`,time:"6:00 AM",task:"Camp morning PT — 100%. Physical energy sets your day's tone.",tag:"physical"},
+      {id:`d${d}t2`,time:"Morning",task:`Camp GD — today's focus: ${campTips[idx]||campTips[14]}`,tag:"camp"},
+      {id:`d${d}t3`,time:"Mid-morning",task:"Camp Lecturette / GPE — structure thoughts before speaking. Lead.",tag:"camp"},
+      {id:`d${d}t4`,time:"Afternoon",task:"Camp outdoor tasks (PGT/HGT) — first to call approach. Assign roles. Drive solution.",tag:"gto"},
+      {id:`d${d}t5`,time:"Late afternoon",task:"Camp mock interview / psychology — apply everything. No rehearsed answers.",tag:"interview"},
+      {id:`d${d}t6`,time:"Evening (free)",task:"Current affairs — 20 mins only. Flashcards. Stay sharp.",tag:"knowledge"},
+      {id:`d${d}t7`,time:"Evening (free)",task:"WAT + SRT quick — 15 words + 10 situations. Maintain rhythm.",tag:"psychology"},
+      {id:`d${d}t8`,time:"Night",task:"Camp journal — where did I lead? Where did I hold back?",tag:"mindset"},
+      {id:`d${d}t9`,time:"10:30 PM",task:"Sleep. Recovery is performance.",tag:"rest"},
+    ]});
+  }
+  const p3={
+    31:{week:"Days 31–34 · Taper & Polish",tasks:[
+      {time:"6:00–7:00 AM",task:"Light physical — walk, stretch. Body ready, not exhausted.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Current affairs final — flashcards only, no new topics.",tag:"knowledge"},
+      {time:"9:30–11:00 AM",task:"PIQ final read-aloud — must sound natural, not rehearsed.",tag:"interview"},
+      {time:"11:30 AM–1:00 PM",task:"Rest / light reading.",tag:"rest"},
+      {time:"2:00–4:00 PM",task:"Light mock interview — conversational, build confidence.",tag:"interview"},
+      {time:"4:30–6:00 PM",task:"Relaxed walk. No study. Let the mind settle.",tag:"rest"},
+      {time:"8:00–9:00 PM",task:"Very light exercise only.",tag:"physical"},
+      {time:"10:00 PM",task:"Sleep. You've done the work. Trust it.",tag:"rest"},
+    ]},
+    32:{week:"Days 31–34 · Taper & Polish",tasks:[
+      {time:"6:00–7:00 AM",task:"Light physical — jogging, not sprinting.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Army knowledge rapid revision — ranks, ops, current affairs in one pass.",tag:"knowledge"},
+      {time:"9:30–11:30 AM",task:"Full mock interview — final version. Smooth, confident, grounded.",tag:"interview"},
+      {time:"12:00–2:00 PM",task:"Rest. Eat well. Hydrate.",tag:"rest"},
+      {time:"2:30–4:00 PM",task:"Lecturette — 2 topics. Polish delivery, not content.",tag:"gto"},
+      {time:"4:30–6:00 PM",task:"Conference question drill — 10 pressure questions: emotion + action + lesson.",tag:"interview"},
+      {time:"8:00–9:00 PM",task:"Light exercise.",tag:"physical"},
+      {time:"10:00 PM",task:"Sleep early.",tag:"rest"},
+    ]},
+    33:{week:"Days 31–34 · Taper & Polish",tasks:[
+      {time:"6:00–7:00 AM",task:"Light physical.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"TAT — 5 pictures only. Hero consistent, active, decisive.",tag:"psychology"},
+      {time:"9:30–11:00 AM",task:"WAT + SRT — 30 words + 30 situations. Confidence builder.",tag:"psychology"},
+      {time:"11:30 AM–1:00 PM",task:"Rest / light reading.",tag:"rest"},
+      {time:"2:00–3:30 PM",task:"GPE final scenario — clean, structured, 3 mins.",tag:"gto"},
+      {time:"4:00–6:00 PM",task:"Relax. Music, walk, something that restores you.",tag:"rest"},
+      {time:"8:00–9:00 PM",task:"Light exercise.",tag:"physical"},
+      {time:"10:00 PM",task:"Sleep.",tag:"rest"},
+    ]},
+    34:{week:"Days 31–34 · Taper & Polish",tasks:[
+      {time:"6:00–7:00 AM",task:"Light physical — final active session before SSB.",tag:"physical"},
+      {time:"7:30–9:00 AM",task:"Current affairs final pass — flashcards, 20 mins max.",tag:"knowledge"},
+      {time:"9:30–11:00 AM",task:"PIQ + SD final read. Silent. Must feel like YOU, not notes.",tag:"interview"},
+      {time:"11:30 AM–2:00 PM",task:"Rest. Eat a good meal. Don't study.",tag:"rest"},
+      {time:"2:30–4:00 PM",task:"Pack everything — documents, ID, clothes, PIQ copies. Check twice.",tag:"rest"},
+      {time:"4:30–6:00 PM",task:"Write one final journal entry — what you've built in 34 days.",tag:"mindset"},
+      {time:"8:00 PM",task:"No exercise. Rest the body completely.",tag:"rest"},
+      {time:"10:00 PM",task:"Sleep. Tomorrow you travel.",tag:"rest"},
+    ]},
+    35:{week:"Days 35–36 · Mental Arrival",tasks:[
+      {time:"Morning",task:"Travel to SSB centre. Stay calm, observe, be present.",tag:"rest"},
+      {time:"Afternoon",task:"Settle in. Meet fellow candidates. Be genuinely curious.",tag:"mindset"},
+      {time:"Evening",task:"Light walk. Visualize tasks — grounded, decisive, moving the group.",tag:"mindset"},
+      {time:"Night",task:"Sleep by 10 PM. First SSB day tomorrow. You are ready.",tag:"rest"},
+    ]},
+    36:{week:"Days 35–36 · Mental Arrival",tasks:[
+      {time:"Day 1 SSB",task:"OIR / PPDT — stay calm. You've done this 100 times in practice.",tag:"camp"},
+      {time:"Remember",task:"GD — speak within 30 seconds. Move the group. Don't just contribute.",tag:"gto"},
+      {time:"Remember",task:"Interview — emotion + action + lesson. Never 'nothing sir'.",tag:"interview"},
+      {time:"Remember",task:"GTO — first to call the approach. Lead completely or not at all.",tag:"gto"},
+      {time:"Remember",task:"Conference — unmovable this time. Waiting is a test. Pass it.",tag:"mindset"},
+      {time:"Tonight",task:"Reflect 5 mins. Then sleep. Tomorrow is a new task.",tag:"mindset"},
+    ]},
+  };
+  for(let d=31;d<=36;d++){
+    const s=p3[d];
+    days.push({day:d,phase:3,weekLabel:s.week,
+      tasks:s.tasks.map((t,i)=>({...t,id:`d${d}t${i+1}`}))});
+  }
+  return days;
+}
+const PLAN=buildPlan();
+
+// ═══════════════════════════════════════════════════════════════
+// STATE & STORAGE
+// ═══════════════════════════════════════════════════════════════
+function load(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+let STATE={
+  view:"today",
+  viewingDay:1,
+  currentDay:1,
+  taskData: load("ssb_tasks")||{},
+  ngoMode:  load("ssb_ngo")||{},
+  journal:  load("ssb_journal")||{},
+  expandedTask:null,
+  journalText:"",
+  notifGranted: ("Notification" in window && Notification.permission==="granted"),
+  notifScheduled: load("ssb_notif_scheduled")||false,
+};
+
+function getDayNumber(){
+  const diff=Math.floor((new Date()-START_DATE)/86400000)+1;
+  return Math.max(1,Math.min(36,diff));
+}
+
+function getDateLabel(day){
+  const d=new Date(START_DATE);
+  d.setDate(d.getDate()+day-1);
+  return d.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});
+}
+
+function resolveTask(task,isOffice,dayIdx){
+  if(task.tag!=="__NGO__") return task;
+  const i=Math.min(dayIdx,14);
+  return{...task,task:isOffice?NGO_OFFICE[i]:NGO_REMOTE[i],tag:isOffice?"ngo_office":"ngo_remote"};
+}
+
+function getResolvedTasks(day){
+  const plan=PLAN.find(p=>p.day===day);
+  if(!plan) return[];
+  const mode=STATE.ngoMode[`d${day}`];
+  return plan.tasks.map(t=>resolveTask(t,mode==="office",day-1));
+}
+
+function getDayStats(day){
+  const tasks=getResolvedTasks(day);
+  const done=tasks.filter(t=>STATE.taskData[t.id]?.done).length;
+  const ratings=tasks.map(t=>STATE.taskData[t.id]?.rating).filter(Boolean);
+  const avgRating=ratings.length?(ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1):0;
+  const totalTime=tasks.reduce((acc,t)=>acc+(STATE.taskData[t.id]?.time||0),0);
+  return{done,total:tasks.length,avgRating,totalTime};
+}
+
+function getOverall(){
+  let done=0,total=0;
+  for(let d=1;d<=36;d++){const s=getDayStats(d);done+=s.done;total+=s.total;}
+  return{done,total,pct:total?Math.round(done/total*100):0};
+}
+
+function getStreak(){
+  let streak=0;
+  for(let d=STATE.currentDay;d>=1;d--){
+    if(getDayStats(d).done>0) streak++; else break;
+  }
+  return streak;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+async function requestNotifications(){
+  if(!("Notification" in window))return;
+  const p=await Notification.requestPermission();
+  STATE.notifGranted=p==="granted";
+  if(p==="granted"){
+    showToast("🔔 Notifications enabled!");
+    new Notification("SSB Mission Active 🔥",{body:"Saurabh — July 21 is the target. Day 1 starts now."});
+    scheduleAllNotifications();
+  }
+  render();
+}
+
+function scheduleAllNotifications(){
+  // We use a Service Worker approach via scheduled checks
+  // Store all scheduled times in localStorage for the SW
+  const schedule=[];
+  for(let d=1;d<=36;d++){
+    const plan=PLAN.find(p=>p.day===d);
+    if(!plan) continue;
+    const date=new Date(START_DATE);
+    date.setDate(date.getDate()+d-1);
+    const ph=plan.phase;
+    const notifs=ph===1?NOTIF_SCHEDULE.phase1:ph===2?NOTIF_SCHEDULE.phase2:NOTIF_SCHEDULE.phase3;
+    notifs.forEach(([h,m,title,body])=>{
+      const t=new Date(date);
+      t.setHours(h,m,0,0);
+      if(t>new Date()){
+        schedule.push({ts:t.getTime(),title:`[Day ${d}] ${title}`,body,day:d});
+      }
+    });
+  }
+  save("ssb_notif_schedule",schedule);
+  save("ssb_notif_scheduled",true);
+  STATE.notifScheduled=true;
+  startNotifChecker();
+  showToast(`✅ ${schedule.length} reminders scheduled for all 36 days!`);
+}
+
+let notifCheckInterval=null;
+function startNotifChecker(){
+  if(notifCheckInterval) clearInterval(notifCheckInterval);
+  notifCheckInterval=setInterval(()=>{
+    if(!STATE.notifGranted) return;
+    const schedule=load("ssb_notif_schedule")||[];
+    const now=Date.now();
+    const fired=load("ssb_notif_fired")||{};
+    let changed=false;
+    schedule.forEach(n=>{
+      const key=`${n.ts}`;
+      if(!fired[key] && now>=n.ts && now<=n.ts+60000){
+        fired[key]=true;
+        changed=true;
+        new Notification(n.title,{
+          body:n.body,
+          icon:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f7a030'/%3E%3Ctext y='.9em' font-size='90' x='10'%3E⭐%3C/text%3E%3C/svg%3E",
+          badge:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f7a030'/%3E%3C/svg%3E",
+          tag:`ssb-${n.ts}`,
+          requireInteraction:false,
+        });
+      }
+    });
+    if(changed) save("ssb_notif_fired",fired);
+  },30000); // check every 30 seconds
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;
+  t.style.display="block";
+  t.style.opacity="1";
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>{t.style.opacity="0";setTimeout(()=>t.style.display="none",300);},3000);
+}
+
+function phaseAccent(ph){return PHASE_META[ph]?.accent||"#f7a030";}
+function phaseDim(ph){return PHASE_META[ph]?.dim||"#5a3a10";}
+
+function tagStyle(tag){
+  const c=TAG_COLORS[tag]||TAG_COLORS.rest;
+  return `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+}
+
+function el(tag,attrs,...children){
+  const e=document.createElement(tag);
+  if(attrs) Object.entries(attrs).forEach(([k,v])=>{
+    if(k==="style") e.style.cssText=v;
+    else if(k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==="class") e.className=v;
+    else e.setAttribute(k,v);
+  });
+  children.flat().forEach(c=>{
+    if(c===null||c===undefined) return;
+    e.appendChild(typeof c==="string"?document.createTextNode(c):c);
+  });
+  return e;
+}
+
+function div(style,...children){return el("div",{style},...children);}
+function span(style,text){const s=el("span",{style});s.textContent=text;return s;}
+function btn(style,text,onClick){const b=el("button",{style,onClick});b.textContent=text;return b;}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+function render(){
+  const app=document.getElementById("app");
+  app.innerHTML="";
+  const todayPlan=PLAN.find(p=>p.day===STATE.viewingDay)||PLAN[0];
+  const ph=todayPlan.phase;
+  const pm=PHASE_META[ph];
+  const accent=pm.accent;
+  const quote=QUOTES[(STATE.currentDay-1)%QUOTES.length];
+  const daysLeft=Math.max(0,36-STATE.currentDay+1);
+  const streak=getStreak();
+  const overall=getOverall();
+
+  // ── HEADER ──
+  const header=div(`background:#0a0a0a;border-bottom:1px solid ${pm.dim};padding:16px 16px 12px;`);
+  const headerRow=div("display:flex;justify-content:space-between;align-items:flex-start;");
+  const headerLeft=div("");
+  headerLeft.appendChild(span("font-size:9px;letter-spacing:4px;color:#333;text-transform:uppercase;display:block;","SSB Mission Tracker"));
+  const nameEl=el("div",{style:"font-size:20px;font-weight:700;color:#fff;margin-top:2px;"}); nameEl.textContent="Saurabh Mishra"; headerLeft.appendChild(nameEl);
+  headerLeft.appendChild(span("font-size:10px;color:#444;display:block;","Orange-42 · Target: July 21, 2026"));
+  const headerRight=div("text-align:right;");
+  const dayNum=el("div",{style:`font-size:32px;font-weight:900;color:${accent};line-height:1;`}); dayNum.textContent=`D${STATE.currentDay}`; headerRight.appendChild(dayNum);
+  headerRight.appendChild(span("font-size:9px;color:#333;letter-spacing:2px;display:block;","OF 36"));
+  const pbWrap=div("margin-top:3px;background:#1a1a1a;border-radius:2px;height:3px;width:68px;");
+  pbWrap.appendChild(div(`height:100%;width:${(STATE.currentDay/36)*100}%;background:${accent};border-radius:2px;`));
+  headerRight.appendChild(pbWrap);
+  headerRight.appendChild(span(`font-size:9px;color:#333;margin-top:2px;display:block;`,`${daysLeft}d · ${streak}🔥`));
+  headerRow.appendChild(headerLeft); headerRow.appendChild(headerRight);
+  header.appendChild(headerRow);
+
+  // Phase pill
+  const pill=div(`margin-top:10px;display:inline-flex;align-items:center;gap:7px;background:#111;border:1px solid ${pm.dim};border-radius:20px;padding:5px 12px;`);
+  pill.appendChild(div(`width:6px;height:6px;border-radius:50%;background:${accent};flex-shrink:0;`));
+  pill.appendChild(span(`font-size:11px;color:${accent};font-weight:700;`,pm.label));
+  pill.appendChild(span("font-size:10px;color:#444;","·"));
+  pill.appendChild(span("font-size:10px;color:#555;",pm.subtitle));
+  header.appendChild(pill);
+
+  // Quote
+  const qBox=div(`margin-top:10px;background:#0d0d0d;border:1px solid ${pm.dim}44;border-left:3px solid ${accent};border-radius:4px;padding:9px 12px;`);
+  const qText=el("div",{style:"font-size:12px;color:#aaa;line-height:1.6;font-style:italic;"}); qText.textContent=`"${quote.t}"`; qBox.appendChild(qText);
+  qBox.appendChild(span("font-size:9px;color:#333;margin-top:3px;display:block;",`— ${quote.a}`));
+  header.appendChild(qBox);
+
+  // Notif banner
+  if(!STATE.notifGranted){
+    const nb=el("button",{class:"notif-banner",onClick:requestNotifications});
+    nb.textContent="🔔 Enable reminders — schedule all 36 days of notifications"; header.appendChild(nb);
+  } else if(!STATE.notifScheduled){
+    const nb=el("button",{class:"notif-banner",onClick:scheduleAllNotifications});
+    nb.textContent="📅 Schedule all 36-day notifications now"; header.appendChild(nb);
+  } else {
+    const nb=div("margin-top:8px;background:#0a1a0a;border:1px solid #1a4a1a;border-radius:4px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;");
+    nb.appendChild(span("font-size:11px;color:#50f7c0;","✅ All 36-day reminders active"));
+    const resetBtn=btn("background:none;border:none;color:#333;font-size:10px;cursor:pointer;","reset",()=>{
+      save("ssb_notif_fired",{});save("ssb_notif_schedule",[]);save("ssb_notif_scheduled",false);
+      STATE.notifScheduled=false;render();showToast("Notifications reset.");
+    });
+    nb.appendChild(resetBtn); header.appendChild(nb);
+  }
+  app.appendChild(header);
+
+  // ── CONTENT ──
+  const content=div("padding:14px;");
+
+  if(STATE.view==="today") renderToday(content,todayPlan,ph,accent,pm);
+  else if(STATE.view==="plan") renderPlan(content,accent);
+  else if(STATE.view==="stats") renderStats(content,ph,accent,overall,daysLeft,streak);
+  else if(STATE.view==="journal") renderJournal(content,accent);
+
+  app.appendChild(content);
+
+  // ── NAV ──
+  const nav=el("nav",{class:"nav"});
+  [["today","⚡","Today"],["plan","🗓","Plan"],["stats","📊","Stats"],["journal","📓","Journal"]].forEach(([id,icon,label])=>{
+    const b=el("button",{class:"nav-btn",style:`color:${STATE.view===id?accent:"#222"};border-top:2px solid ${STATE.view===id?accent:"transparent"};`,onClick:()=>{STATE.view=id;render();}});
+    b.appendChild(span("font-size:16px;",icon));
+    b.appendChild(span("",label));
+    nav.appendChild(b);
+  });
+  app.appendChild(nav);
+
+  // Start checker if notifications granted
+  if(STATE.notifGranted && !notifCheckInterval) startNotifChecker();
+}
+
+function renderToday(content,todayPlan,ph,accent,pm){
+  // Day nav
+  const dayNav=div("display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;");
+  dayNav.appendChild(btn(`background:#111;border:1px solid #1e1e1e;color:#666;padding:6px 14px;border-radius:4px;font-size:16px;`,"‹",()=>{STATE.viewingDay=Math.max(1,STATE.viewingDay-1);STATE.expandedTask=null;render();}));
+  const dayCenter=div("text-align:center;");
+  const dayLabel=el("div",{style:"font-size:14px;font-weight:700;color:#fff;"});
+  dayLabel.textContent=(STATE.viewingDay===STATE.currentDay?"Today — ":"")+getDateLabel(STATE.viewingDay);
+  dayCenter.appendChild(dayLabel);
+  dayCenter.appendChild(span("font-size:9px;color:#3a3a3a;margin-top:1px;display:block;",todayPlan.weekLabel));
+  dayNav.appendChild(dayCenter);
+  dayNav.appendChild(btn(`background:#111;border:1px solid #1e1e1e;color:#666;padding:6px 14px;border-radius:4px;font-size:16px;`,"›",()=>{STATE.viewingDay=Math.min(36,STATE.viewingDay+1);STATE.expandedTask=null;render();}));
+  content.appendChild(dayNav);
+
+  // NGO toggle (Phase 1 only)
+  if(ph===1){
+    const ngoBox=div("margin-bottom:12px;background:#0e0e0e;border:1px solid #1a1a1a;border-radius:8px;padding:12px 14px;");
+    ngoBox.appendChild(span("font-size:10px;color:#444;letter-spacing:1px;display:block;margin-bottom:8px;","NGO MODE TODAY"));
+    const row=div("display:flex;gap:8px;");
+    const mode=STATE.ngoMode[`d${STATE.viewingDay}`];
+    const offBtn=el("button",{
+      style:`flex:1;padding:9px;border-radius:6px;font-family:Georgia,serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;background:${mode==="office"?"#0d1e1a":"transparent"};border:1px solid ${mode==="office"?"#106a50":"#1e1e1e"};color:${mode==="office"?"#50f7c0":"#3a3a3a"};`,
+      onClick:()=>{STATE.ngoMode[`d${STATE.viewingDay}`]="office";save("ssb_ngo",STATE.ngoMode);showToast("🏢 NGO Office day logged!");render();}
+    });
+    offBtn.textContent="🏢 Office Day"; row.appendChild(offBtn);
+    const remBtn=el("button",{
+      style:`flex:1;padding:9px;border-radius:6px;font-family:Georgia,serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;background:${mode==="remote"?"#141414":"transparent"};border:1px solid ${mode==="remote"?"#444":"#1e1e1e"};color:${mode==="remote"?"#888":"#3a3a3a"};`,
+      onClick:()=>{STATE.ngoMode[`d${STATE.viewingDay}`]="remote";save("ssb_ngo",STATE.ngoMode);showToast("🏠 NGO Remote day logged!");render();}
+    });
+    remBtn.textContent="🏠 Remote Day"; row.appendChild(remBtn);
+    ngoBox.appendChild(row);
+    if(!mode) ngoBox.appendChild(span("font-size:10px;color:#2a2a2a;display:block;margin-top:6px;text-align:center;","Select to personalise your NGO tasks for today"));
+    content.appendChild(ngoBox);
+  }
+
+  // Stats row
+  const stats=getDayStats(STATE.viewingDay);
+  const statsRow=div("display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px;");
+  [{label:"Done",value:`${stats.done}/${stats.total}`},{label:"Rating",value:stats.avgRating||"—"},{label:"Minutes",value:stats.totalTime||"0"}].forEach(s=>{
+    const c=div(`background:#0e0e0e;border:1px solid #141414;border-radius:6px;padding:9px 6px;text-align:center;`);
+    const v=el("div",{style:`font-size:18px;font-weight:900;color:${accent};`}); v.textContent=s.value; c.appendChild(v);
+    c.appendChild(span("font-size:9px;color:#333;letter-spacing:1px;margin-top:1px;display:block;",s.label));
+    statsRow.appendChild(c);
+  });
+  content.appendChild(statsRow);
+
+  // Progress bar
+  const pct=stats.total?Math.round(stats.done/stats.total*100):0;
+  const pbSection=div("margin-bottom:14px;");
+  const pbHeader=div("display:flex;justify-content:space-between;font-size:9px;color:#333;margin-bottom:3px;");
+  const pbl=el("span"); pbl.textContent=`Day ${STATE.viewingDay} progress`; pbHeader.appendChild(pbl);
+  const pbr=el("span"); pbr.textContent=`${pct}%`; pbHeader.appendChild(pbr);
+  pbSection.appendChild(pbHeader);
+  const pbw=div("background:#141414;border-radius:3px;height:4px;");
+  pbw.appendChild(div(`height:100%;border-radius:3px;width:${pct}%;background:linear-gradient(90deg,${pm.dim},${accent});transition:width .3s;`));
+  pbSection.appendChild(pbw);
+  content.appendChild(pbSection);
+
+  // Tasks
+  const tasks=getResolvedTasks(STATE.viewingDay);
+  tasks.forEach(task=>{
+    const td=STATE.taskData[task.id]||{};
+    const isNGOPending=task.tag==="__NGO__";
+    const tc=TAG_COLORS[task.tag]||TAG_COLORS.rest;
+    const isExp=STATE.expandedTask===task.id;
+
+    const card=div(`background:${isNGOPending?"#0d0d0d":td.done?"#091209":"#0e0e0e"};border:1px solid ${isNGOPending?"#2a1a00":td.done?"#143014":"#141414"};border-radius:7px;margin-bottom:6px;overflow:hidden;${isNGOPending?"opacity:.55;":""}`);
+
+    const cardMain=div("padding:10px 12px;display:flex;gap:10px;align-items:flex-start;");
+    const check=div(`width:21px;height:21px;border-radius:50%;flex-shrink:0;margin-top:1px;border:2px solid ${td.done?accent:"#222"};background:${td.done?accent:"transparent"};cursor:${isNGOPending?"not-allowed":"pointer"};display:flex;align-items:center;justify-content:center;color:#000;font-size:12px;font-weight:900;transition:all .15s;`);
+    if(td.done) check.textContent="✓";
+    if(!isNGOPending) check.addEventListener("click",()=>{
+      if(!STATE.taskData[task.id]) STATE.taskData[task.id]={};
+      STATE.taskData[task.id].done=!STATE.taskData[task.id].done;
+      save("ssb_tasks",STATE.taskData);
+      if(STATE.taskData[task.id].done) showToast("✅ Task done!");
+      render();
+    });
+    cardMain.appendChild(check);
+
+    const cardBody=div("flex:1;");
+    cardBody.appendChild(span("font-size:10px;color:#2e2e2e;display:block;margin-bottom:1px;",task.time));
+    const taskText=el("div",{style:`font-size:13px;line-height:1.45;color:${isNGOPending?"#4a3a1a":td.done?"#3a3a3a":"#d0d0d0"};${td.done?"text-decoration:line-through;":""}`});
+    taskText.textContent=isNGOPending?"⚠ Select NGO mode above to unlock this task":task.task;
+    cardBody.appendChild(taskText);
+
+    if(!isNGOPending){
+      const tagRow=div("margin-top:6px;display:flex;justify-content:space-between;align-items:center;");
+      const badge=el("span",{style:`${tagStyle(task.tag)}border-radius:3px;padding:2px 6px;font-size:9px;letter-spacing:.3px;`});
+      badge.textContent=(TAG_COLORS[task.tag]||TAG_COLORS.rest).label;
+      tagRow.appendChild(badge);
+      const logBtn=btn("background:none;border:none;color:#2a2a2a;font-size:10px;padding:0;",isExp?"▲ close":"▼ log",()=>{
+        STATE.expandedTask=isExp?null:task.id; render();
+      });
+      tagRow.appendChild(logBtn);
+      cardBody.appendChild(tagRow);
+    }
+    cardMain.appendChild(cardBody);
+    card.appendChild(cardMain);
+
+    // Expanded log
+    if(isExp && !isNGOPending){
+      const exp=div("padding:0 12px 12px 43px;border-top:1px solid #111;padding-top:10px;");
+      exp.appendChild(span("font-size:9px;color:#2e2e2e;display:block;margin-bottom:5px;","Time spent"));
+      const timeRow=div("display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;");
+      [15,30,45,60,90,120].forEach(m=>{
+        const isActive=td.time===m;
+        const tb=btn(`background:${isActive?"#0d1e2e":"transparent"};border:1px solid ${isActive?"#1a4a6a":"#1a1a1a"};color:${isActive?"#7eb8f7":"#2e2e2e"};padding:3px 8px;border-radius:3px;font-size:11px;`,`${m}m`,()=>{
+          if(!STATE.taskData[task.id]) STATE.taskData[task.id]={};
+          STATE.taskData[task.id].time=m; save("ssb_tasks",STATE.taskData); render();
+        });
+        timeRow.appendChild(tb);
+      });
+      exp.appendChild(timeRow);
+      exp.appendChild(span("font-size:9px;color:#2e2e2e;display:block;margin-bottom:5px;","Rate performance"));
+      const stars=div("display:flex;gap:4px;");
+      [1,2,3,4,5].forEach(n=>{
+        const s=el("span",{style:`font-size:22px;cursor:pointer;color:${n<=(td.rating||0)?"#f7c030":"#1e1e1e"};transition:color .1s;`});
+        s.textContent="★";
+        s.addEventListener("click",()=>{
+          if(!STATE.taskData[task.id]) STATE.taskData[task.id]={};
+          STATE.taskData[task.id].rating=n; save("ssb_tasks",STATE.taskData);
+          showToast(n>=4?"🔥 Solid!":n>=3?"👊 Keep pushing!":"💪 Fix it tomorrow."); render();
+        });
+        stars.appendChild(s);
+      });
+      exp.appendChild(stars);
+      card.appendChild(exp);
+    }
+    content.appendChild(card);
+  });
+}
+
+function renderPlan(content,accent){
+  content.appendChild(span("font-size:9px;letter-spacing:3px;color:#333;text-transform:uppercase;display:block;margin-bottom:12px;","36-Day Mission Map"));
+  [1,2,3].forEach(ph=>{
+    const pm=PHASE_META[ph];
+    const phaseCard=div(`background:#0e0e0e;border:1px solid ${pm.dim};border-left:3px solid ${pm.accent};border-radius:6px;padding:10px 13px;margin-bottom:7px;`);
+    const title=el("div",{style:"font-weight:700;color:#fff;font-size:13px;"});
+    title.textContent=ph===1?"Phase 1 — Self Prep":ph===2?"Phase 2 — SSB Coaching Camp":"Phase 3 — Final Taper";
+    phaseCard.appendChild(title);
+    phaseCard.appendChild(span(`font-size:10px;color:${pm.accent};margin-top:1px;display:block;`,pm.subtitle));
+    phaseCard.appendChild(span("font-size:10px;color:#3a3a3a;margin-top:2px;display:block;",ph===1?"Build the base. Fix weak points. Form habits.":ph===2?"Perform under real conditions. Lead every session.":"Arrive sharp, calm, and ready."));
+    content.appendChild(phaseCard);
+    const grid=div("display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:4px;margin-bottom:18px;");
+    PLAN.filter(p=>p.phase===ph).forEach(p=>{
+      const s=getDayStats(p.day);
+      const pct=s.total?Math.round(s.done/s.total*100):0;
+      const isToday=p.day===STATE.currentDay;
+      const isPast=p.day<STATE.currentDay;
+      const ngo=STATE.ngoMode[`d${p.day}`];
+      const db=el("button",{
+        style:`background:${isToday?"#1a1100":pct===100?"#091209":"#0e0e0e"};border:1px solid ${isToday?pm.accent:pct===100?"#1a4a1a":"#141414"};border-radius:5px;padding:6px 3px;cursor:pointer;font-family:Georgia,serif;text-align:center;`,
+        onClick:()=>{STATE.viewingDay=p.day;STATE.view="today";STATE.expandedTask=null;render();}
+      });
+      const dn=el("div",{style:`font-size:11px;font-weight:700;color:${isToday?pm.accent:pct===100?"#7ef7a0":isPast?"#2a2a2a":"#555"};`});
+      dn.textContent=`D${p.day}`; db.appendChild(dn);
+      const dp=el("div",{style:`font-size:8px;color:${pct===100?"#1a5a1a":"#1e1e1e"};`});
+      dp.textContent=`${pct}%`; db.appendChild(dp);
+      if(ph===1&&ngo){const ni=el("div",{style:"font-size:8px;margin-top:1px;"});ni.textContent=ngo==="office"?"🏢":"🏠";db.appendChild(ni);}
+      grid.appendChild(db);
+    });
+    content.appendChild(grid);
+  });
+}
+
+function renderStats(content,ph,accent,overall,daysLeft,streak){
+  content.appendChild(span("font-size:9px;letter-spacing:3px;color:#333;text-transform:uppercase;display:block;margin-bottom:12px;","Mission Stats"));
+
+  // Overall
+  const ovCard=div("background:#0e0e0e;border:1px solid #141414;border-radius:10px;padding:18px;margin-bottom:10px;");
+  const ovRow=div("display:flex;align-items:center;gap:20px;");
+  // SVG donut
+  const r=28,circ=2*Math.PI*r,dash=(overall.pct/100)*circ;
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("width","90");svg.setAttribute("height","90");svg.setAttribute("viewBox","0 0 64 64");
+  const bg=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  bg.setAttribute("cx","32");bg.setAttribute("cy","32");bg.setAttribute("r","28");bg.setAttribute("fill","none");bg.setAttribute("stroke","#1a1a1a");bg.setAttribute("stroke-width","8");
+  const fg=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  fg.setAttribute("cx","32");fg.setAttribute("cy","32");fg.setAttribute("r","28");fg.setAttribute("fill","none");fg.setAttribute("stroke",accent);fg.setAttribute("stroke-width","8");fg.setAttribute("stroke-dasharray",`${dash} ${circ-dash}`);fg.setAttribute("stroke-dashoffset",String(circ/4));fg.setAttribute("stroke-linecap","round");
+  const txt=document.createElementNS("http://www.w3.org/2000/svg","text");
+  txt.setAttribute("x","32");txt.setAttribute("y","36");txt.setAttribute("text-anchor","middle");txt.setAttribute("fill",accent);txt.setAttribute("font-size","12");txt.setAttribute("font-weight","700");txt.setAttribute("font-family","Georgia,serif");txt.textContent=`${overall.pct}%`;
+  svg.appendChild(bg);svg.appendChild(fg);svg.appendChild(txt);
+  ovRow.appendChild(svg);
+  const ovInfo=div("flex:1;");
+  ovInfo.appendChild(span("font-size:12px;color:#555;display:block;margin-bottom:8px;","Overall Mission"));
+  [[`${overall.done}/${overall.total}`,"Tasks done"],[`${streak} 🔥`,"Day streak"],[`${daysLeft}`,"Days left"],[`${Object.values(STATE.ngoMode).filter(v=>v==="office").length}`,"NGO office days"],[`${Object.values(STATE.ngoMode).filter(v=>v==="remote").length}`,"NGO remote days"]].forEach(([val,label],i)=>{
+    const row=div(`display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #111;`);
+    row.appendChild(span("color:#555;",label));
+    const v=el("span",{style:`color:${i===0?accent:"#888"};`});v.textContent=val;row.appendChild(v);
+    ovInfo.appendChild(row);
+  });
+  ovRow.appendChild(ovInfo);
+  ovCard.appendChild(ovRow);
+  content.appendChild(ovCard);
+
+  // Weekly bar chart
+  const wkCard=div("background:#0e0e0e;border:1px solid #141414;border-radius:8px;padding:14px;margin-bottom:10px;");
+  wkCard.appendChild(span("font-size:10px;color:#3a3a3a;letter-spacing:1px;display:block;margin-bottom:10px;","WEEKLY COMPLETION %"));
+  const wkData=[];
+  for(let w=0;w<6;w++){
+    let done=0,total=0;
+    for(let d=w*6+1;d<=Math.min((w+1)*6,36);d++){const s=getDayStats(d);done+=s.done;total+=s.total;}
+    wkData.push({label:`W${w+1}`,pct:total?Math.round(done/total*100):0,isNow:STATE.currentDay>=w*6+1&&STATE.currentDay<=(w+1)*6});
+  }
+  const barH=70;
+  const barWrap=div("display:flex;align-items:flex-end;gap:3px;height:"+barH+"px;");
+  wkData.forEach(w=>{
+    const col=div("flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;justify-content:flex-end;");
+    const bar=div(`width:100%;height:${Math.max(w.pct/100*barH,2)}px;background:${w.isNow?"#fff":accent};border-radius:2px 2px 0 0;border:${w.isNow?`1px solid ${accent}`:"none"};transition:height .3s;`);
+    col.appendChild(bar); barWrap.appendChild(col);
+  });
+  wkCard.appendChild(barWrap);
+  const wkLabels=div("display:flex;gap:3px;margin-top:4px;");
+  wkData.forEach(w=>{
+    const l=div(`flex:1;text-align:center;font-size:9px;color:${w.isNow?accent:"#2a2a2a"};`);
+    l.textContent=w.label; wkLabels.appendChild(l);
+  });
+  wkCard.appendChild(wkLabels);
+  content.appendChild(wkCard);
+
+  // Heatmap
+  const hmCard=div("background:#0e0e0e;border:1px solid #141414;border-radius:8px;padding:14px;margin-bottom:10px;");
+  hmCard.appendChild(span("font-size:10px;color:#3a3a3a;letter-spacing:1px;display:block;margin-bottom:8px;","DAILY HEATMAP"));
+  const hmWrap=div("display:flex;gap:2px;flex-wrap:wrap;");
+  PLAN.forEach(p=>{
+    const s=getDayStats(p.day);
+    const pct=s.total?s.done/s.total:0;
+    const isToday=p.day===STATE.currentDay;
+    const phAcc=PHASE_META[p.phase].accent;
+    const phR=p.phase===1?"247,160,48":p.phase===2?"48,212,247":"247,48,96";
+    const cell=div(`width:14px;height:36px;border-radius:2px;cursor:pointer;border:${isToday?`1px solid ${phAcc}`:"none"};background:${isToday?phAcc:pct===0?"#141414":`rgba(${phR},${0.15+pct*0.85})`};`);
+    cell.title=`Day ${p.day}: ${Math.round(pct*100)}%`;
+    cell.addEventListener("click",()=>{STATE.viewingDay=p.day;STATE.view="today";STATE.expandedTask=null;render();});
+    hmWrap.appendChild(cell);
+  });
+  hmCard.appendChild(hmWrap);
+  const hmFoot=div("display:flex;justify-content:space-between;font-size:9px;color:#222;margin-top:4px;");
+  ["Jun 16","Jul 1→Camp","Jul 16→Taper","Jul 21"].forEach(t=>{const s=el("span");s.textContent=t;hmFoot.appendChild(s);});
+  hmCard.appendChild(hmFoot);
+  content.appendChild(hmCard);
+
+  // Category breakdown
+  const catCard=div("background:#0e0e0e;border:1px solid #141414;border-radius:8px;padding:14px;");
+  catCard.appendChild(span("font-size:10px;color:#3a3a3a;letter-spacing:1px;display:block;margin-bottom:10px;","BY CATEGORY"));
+  Object.entries(TAG_COLORS).filter(([k])=>!["rest","__NGO__"].includes(k)).forEach(([key,val])=>{
+    const tasks=[];
+    for(let d=1;d<=36;d++) getResolvedTasks(d).filter(t=>t.tag===key).forEach(t=>tasks.push(t));
+    const done=tasks.filter(t=>STATE.taskData[t.id]?.done).length;
+    const pct=tasks.length?Math.round(done/tasks.length*100):0;
+    const row=div("margin-bottom:8px;");
+    const lrow=div("display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;");
+    lrow.appendChild(span(`color:${val.text};`,val.label));
+    lrow.appendChild(span("color:#2e2e2e;",`${done}/${tasks.length} · ${pct}%`));
+    row.appendChild(lrow);
+    const pb=div("background:#141414;border-radius:2px;height:3px;");
+    pb.appendChild(div(`height:100%;border-radius:2px;width:${pct}%;background:${val.border};transition:width .4s;`));
+    row.appendChild(pb);
+    catCard.appendChild(row);
+  });
+  content.appendChild(catCard);
+}
+
+function renderJournal(content,accent){
+  const pm=PHASE_META[PLAN.find(p=>p.day===STATE.viewingDay)?.phase||1];
+  content.appendChild(span("font-size:9px;letter-spacing:3px;color:#333;text-transform:uppercase;display:block;margin-bottom:12px;","Reflection Journal"));
+  const prompt=div(`background:#0e0e0e;border:1px solid ${pm.dim};border-left:3px solid ${accent};border-radius:5px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:#666;line-height:1.6;`);
+  const pSpan=el("span",{style:"color:#bbb;"}); pSpan.textContent="Where did I lead today? Where did I hold back?";
+  prompt.appendChild(document.createTextNode("Tonight: ")); prompt.appendChild(pSpan);
+  content.appendChild(prompt);
+  const ta=el("textarea",{style:`width:100%;min-height:120px;background:#0e0e0e;border:1px solid #141414;border-radius:6px;color:#ccc;font-size:13px;font-family:Georgia,serif;padding:12px;resize:vertical;outline:none;line-height:1.7;box-sizing:border-box;`});
+  ta.placeholder="Write honestly. This is between you and the officer you're becoming...";
+  ta.value=STATE.journalText;
+  ta.addEventListener("input",e=>STATE.journalText=e.target.value);
+  content.appendChild(ta);
+  const saveBtn=btn(`margin-top:6px;width:100%;background:${accent};border:none;border-radius:6px;padding:11px;color:#000;font-weight:900;font-size:13px;font-family:Georgia,serif;letter-spacing:1px;`,"SAVE ENTRY",()=>{
+    if(!STATE.journalText.trim()){showToast("Write something first.");return;}
+    const today=new Date().toDateString();
+    STATE.journal[today]={text:STATE.journalText,day:STATE.currentDay};
+    save("ssb_journal",STATE.journal);
+    STATE.journalText="";
+    showToast("Journal saved.");
+    render();
+  });
+  content.appendChild(saveBtn);
+  const pastLabel=div("margin-top:20px;");
+  pastLabel.appendChild(span("font-size:9px;letter-spacing:3px;color:#222;text-transform:uppercase;display:block;margin-bottom:10px;","Past Entries"));
+  const entries=Object.entries(STATE.journal).sort((a,b)=>new Date(b[0])-new Date(a[0]));
+  if(!entries.length) pastLabel.appendChild(span("color:#1e1e1e;font-size:12px;display:block;text-align:center;padding:20px;","No entries yet. Start tonight."));
+  entries.forEach(([date,entry])=>{
+    const card=div("background:#0e0e0e;border:1px solid #141414;border-radius:6px;padding:11px;margin-bottom:6px;");
+    const hdr=div("display:flex;justify-content:space-between;margin-bottom:6px;");
+    hdr.appendChild(span("font-size:9px;color:#2a2a2a;",date));
+    hdr.appendChild(span(`font-size:9px;color:${accent};`,`Day ${entry.day}`));
+    card.appendChild(hdr);
+    const txt=el("div",{style:"font-size:12px;color:#555;line-height:1.6;"}); txt.textContent=entry.text; card.appendChild(txt);
+    pastLabel.appendChild(card);
+  });
+  content.appendChild(pastLabel);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded",()=>{
+  STATE.currentDay=getDayNumber();
+  STATE.viewingDay=STATE.currentDay;
+  if(STATE.notifGranted&&STATE.notifScheduled) startNotifChecker();
+  render();
+  // Re-render every minute to keep time fresh
+  setInterval(()=>{
+    STATE.currentDay=getDayNumber();
+    render();
+  },60000);
+});
+</script>
+</body>
+</html>
